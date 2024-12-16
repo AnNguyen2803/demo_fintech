@@ -1,51 +1,38 @@
-import streamlit as st
-import pandas as pd
-from preprocessing import preprocess_data, prepare_user_input
-from models import train_models, predict_credit_limit
-from utils import load_data
-from math import sqrt  # Thêm thư viện để xử lý RMSE nếu cần
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, mean_squared_error
+import numpy as np  # Import thêm thư viện để tính toán
 
-# Title of the App
-st.title("BNPL Credit Limit Prediction App")
-st.write("""
-Ứng dụng này sử dụng Machine Learning để:
-1. Phân loại khách hàng có đủ điều kiện tín dụng hay không.
-2. Dự đoán hạn mức tín dụng cho khách hàng đủ điều kiện.
-""")
+def train_models(data):
+    # Classification
+    X_class = data.drop(columns=["Approved", "Credit_Limit"])
+    y_class = data["Approved"]
+    X_train_class, X_test_class, y_train_class, y_test_class = train_test_split(X_class, y_class, test_size=0.2, random_state=42)
+    clf = RandomForestClassifier(random_state=42)
+    clf.fit(X_train_class, y_train_class)
+    y_pred_class = clf.predict(X_test_class)
+    classification_accuracy = accuracy_score(y_test_class, y_pred_class)
 
-# Upload CSV
-data_file_path = "data/customer_credit_data.csv"
-data = load_data(data_file_path)
+    # Regression
+    approved_data = data[data["Approved"] == 1]
+    X_reg = approved_data.drop(columns=["Approved", "Credit_Limit"])
+    y_reg = approved_data["Credit_Limit"]
+    X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(X_reg, y_reg, test_size=0.2, random_state=42)
+    reg = GradientBoostingRegressor(random_state=42)
+    reg.fit(X_train_reg, y_train_reg)
+    y_pred_reg = reg.predict(X_test_reg)
+    # Tính toán MSE và RMSE thủ công
+    regression_mse = mean_squared_error(y_test_reg, y_pred_reg)
+    regression_rmse = np.sqrt(regression_mse)
 
-if data is not None:
-    st.write("## Dữ liệu ban đầu:")
-    st.dataframe(data.head())
+    metrics = {
+        "classification_accuracy": classification_accuracy,
+        "regression_rmse": regression_rmse
+    }
 
-    # Preprocess data
-    data, label_encoders = preprocess_data(data)
+    return clf, reg, X_class, X_reg, metrics
 
-    # Train models
-    clf, reg, X_class, X_reg, metrics = train_models(data)
-
-    # Chỉnh sửa lại tính toán RMSE nếu cần
-    if "regression_rmse" not in metrics:  # Kiểm tra nếu Scikit-learn cũ
-        regression_mse = metrics["regression_mse"]  # Lấy MSE từ `train_models`
-        metrics["regression_rmse"] = sqrt(regression_mse)  # Tính RMSE thủ công
-
-    # Display evaluation metrics
-    st.write("## Kết quả mô hình:")
-    st.write(f"**Độ chính xác mô hình phân loại:** {metrics['classification_accuracy']:.2f}")
-    st.write(f"**Sai số trung bình của mô hình hồi quy (RMSE):** {metrics['regression_rmse']:.2f}")
-
-    # User input for prediction
-    st.write("## Dự đoán cho khách hàng mới:")
-    user_input = prepare_user_input(st, label_encoders, X_class.columns)
-
-    # Make predictions
-    if user_input is not None:
-        approved, credit_limit = predict_credit_limit(clf, reg, user_input)
-        if approved:
-            st.success("Khách hàng được duyệt tín dụng!")
-            st.write(f"Hạn mức tín dụng dự đoán: **{credit_limit:,.0f} VND**")
-        else:
-            st.error("Khách hàng không đủ điều kiện tín dụng.")
+def predict_credit_limit(clf, reg, input_data):
+    approved = clf.predict(input_data)[0]
+    credit_limit = reg.predict(input_data)[0] if approved else None
+    return approved, credit_limit
