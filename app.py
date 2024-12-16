@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from preprocessing import preprocess_data, prepare_user_input
-from models import train_models, evaluate_models, predict_credit_limit
+from models import train_models, predict_credit_limit
 from utils import load_data
 
 # Title of the App

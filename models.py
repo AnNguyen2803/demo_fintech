@@ -33,3 +33,4 @@ def predict_credit_limit(clf, reg, input_data):
     approved = clf.predict(input_data)[0]
     credit_limit = reg.predict(input_data)[0] if approved else None
     return approved, credit_limit
+
