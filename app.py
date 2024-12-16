@@ -3,6 +3,7 @@ import pandas as pd
 from preprocessing import preprocess_data, prepare_user_input
 from models import train_models, predict_credit_limit
 from utils import load_data
+from math import sqrt  # Thêm thư viện để xử lý RMSE nếu cần
 
 # Title of the App
 st.title("BNPL Credit Limit Prediction App")
@@ -25,6 +26,11 @@ if data is not None:
 
     # Train models
     clf, reg, X_class, X_reg, metrics = train_models(data)
+
+    # Chỉnh sửa lại tính toán RMSE nếu cần
+    if "regression_rmse" not in metrics:  # Kiểm tra nếu Scikit-learn cũ
+        regression_mse = metrics["regression_mse"]  # Lấy MSE từ `train_models`
+        metrics["regression_rmse"] = sqrt(regression_mse)  # Tính RMSE thủ công
 
     # Display evaluation metrics
     st.write("## Kết quả mô hình:")
